@@ -1,0 +1,90 @@
+version: '3.8'
+
+services:
+   
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: java-swing-app
+    depends_on:
+       - x11-server
+       - xampp-server
+    environment:
+      JDBC_URL: jdbc:mysql://mysql-employee-db:3307/employeetransfer2?useSSL=false&allowPublicKeyRetrieval=true
+      DB_HOST: mysql-employee-db
+      DB_PORT: 3306
+      DB_NAME: employeetransfer2
+      DB_USER: root
+      DB_PASSWORD: ""
+      DISPLAY: ":0" 
+    networks:
+      - employee-network
+    
+  xampp-server:
+    image: xampp-custom:latest  # Build a custom XAMPP container
+    container_name: xampp-server
+    build:
+      context: ./xampp
+      dockerfile: Dockerfile
+    ports:
+      - "80:80"     # Apache
+      - "3306:3306" # MySQL
+    volumes:
+      - ./employeetransfer2.sql:/opt/lampp/mysql/employeetransfer2.sql
+    healthcheck:
+       test: ["CMD", "curl", "-f", "http://localhost:80"]
+       interval: 10s
+       retries: 5
+       start_period: 30s
+    networks:
+      - employee-network
+      
+  x11-server:
+    image: x11docker/xserver
+    container_name: x11-server
+    networks:
+      - employee-network
+    environment:
+      DISPLAY: ":0"  # Xvfb default display
+    command: ["/usr/bin/Xvfb", ":0", "-screen", "0", "1280x1024x24"]
+    
+  db:
+    image: mysql:5.7
+    container_name: mysql-employee-db
+    environment:
+      MYSQL_ALLOW_EMPTY_PASSWORD: "yes"
+      MYSQL_DATABASE: employeetransfer2
+    volumes:
+      - db_data:/var/lib/mysql
+      - ./employeetransfer2.sql:/docker-entrypoint-initdb.d/employeetransfer2.sql
+    networks:
+      - employee-network
+    ports:
+      - "8080:80"  # Apache
+      - "3307:3306"
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "--silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    container_name: phpmyadmin-employeetransfer
+    environment:
+      PMA_HOST: mysql-employee-db  # Link to the MySQL container
+      MYSQL_ALLOW_EMPTY_PASSWORD: "yes"
+    ports:
+      - "8081:80"  # Access phpMyAdmin on http://localhost:8081
+    depends_on:
+      - db
+    networks:
+      - employee-network
+
+volumes:
+  db_data:
+
+networks:
+  employee-network:
+    driver: bridge

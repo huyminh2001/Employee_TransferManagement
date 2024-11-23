@@ -1,0 +1,44 @@
+# Use OpenJDK as the base image for building the app
+FROM openjdk:22-jdk-slim AS build
+
+# Set the working directory for building
+WORKDIR /app
+
+# Install required dependencies for building
+RUN apt-get update && apt-get install -y \
+    libfreetype6 fontconfig \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy the source code, libraries, and resources
+COPY src /app/src
+COPY src/libaries /app/lib
+COPY src/resources /app/resources
+
+# Compile the Java code
+RUN mkdir -p /app/classes && \
+    find /app/src -name "*.java" | xargs javac -cp "/app/lib/*" -d /app/classes
+
+# Use a lighter OpenJDK image for runtime
+FROM openjdk:22-jdk-slim
+
+# Set the working directory for runtime
+WORKDIR /app
+
+# Install dependencies for runtime
+RUN apt-get update && apt-get install -y \
+    xvfb fluxbox x11vnc libfreetype6 fontconfig psmisc procps \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy compiled classes and libraries from build stage
+COPY --from=build /app/classes /app/classes
+COPY --from=build /app/lib /app/lib
+COPY --from=build /app/resources /app/resources
+
+# Set environment for display (required for GUI applications)
+ENV DISPLAY=:0
+
+# Command to run the application
+# CMD sh -c "Xvfb :0 -screen 0 1280x1024x24 & java -cp '/app/classes:/app/lib/flatlaf-3.5.1.jar:/app/lib/flatlaf-intellij-themes-3.5.0.jar:/app/lib/material-themes-jetbrains-9.5.0.jar:/app/lib/*' jframes.JFrameLogin"
+
+CMD sh -c "rm -f /tmp/.X0-lock && Xvfb :0 -screen 0 1280x1024x24 & java -cp '/app/classes:/app/lib/flatlaf-3.5.1.jar:/app/lib/flatlaf-intellij-themes-3.5.0.jar:/app/lib/material-themes-jetbrains-9.5.0.jar:/app/lib/*' jframes.JFrameLogin"
+

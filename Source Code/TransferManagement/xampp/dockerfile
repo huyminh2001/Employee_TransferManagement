@@ -1,0 +1,22 @@
+# XAMPP Dockerfile
+FROM ubuntu:20.04
+
+# Set noninteractive mode for apt-get
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Install required dependencies including net-tools
+RUN apt-get update && apt-get install -y \
+    wget tar net-tools libfreetype6 fontconfig libxext6 libxrender1 x11-apps \
+    && apt-get clean
+
+# Download and Install XAMPP
+RUN wget https://sourceforge.net/projects/xampp/files/XAMPP%20Linux/8.2.12/xampp-linux-x64-8.2.12-0-installer.run && \
+    chmod +x xampp-linux-x64-8.2.12-0-installer.run && \
+    ./xampp-linux-x64-8.2.12-0-installer.run --mode unattended && \
+    rm xampp-linux-x64-8.2.12-0-installer.run
+
+# Expose necessary ports
+EXPOSE 80 443 3306
+
+# Start XAMPP
+CMD ["/bin/bash", "-c", "/opt/lampp/lampp start && tail -f /opt/lampp/logs/error_log"]
